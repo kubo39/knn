@@ -1,9 +1,11 @@
+// ldc2 -O5 parallelknn.d
 import std.algorithm;
 import std.array;
 import std.conv;
 import std.range;
 import std.stdio;
 import std.string;
+import std.parallelism;
 
 struct LabelPixel
 {
@@ -16,8 +18,7 @@ auto slurpFile(string filename)
     return File(filename)
         .byLine
         .dropOne
-        .map!chomp
-        .map!(a => a.to!string.split(","))
+        .map!(a => a.chomp.to!string.split(","))
         .map!(a => LabelPixel(a[0].to!int, a[1..$].to!(int[])) )
         .array;
 }
@@ -44,14 +45,14 @@ ulong distanceSqrt(const ref int[] x, const ref int[] y)
     return total;
 }
 
-ulong classify(const ref LabelPixel[] training, const ref int[] pixels)
+int classify(const ref LabelPixel[] training, const ref int[] pixels) pure
 {
-    ulong smallest = ulong.max;
-    ulong result = void;
+    int smallest = int.max;
+    int result = void;
 
     foreach (t; training)
     {
-        ulong tmp = distanceSqrt(t.pixels, pixels);
+        int tmp = distanceSqrt(t.pixels, pixels);
         if (tmp < smallest)
         {
             smallest = tmp;
@@ -66,9 +67,8 @@ void main()
     const trainingSet = "trainingsample.csv".slurpFile;
     const validationSample = "validationsample.csv".slurpFile;
 
-    immutable num = validationSample
-        .filter!(a => classify(trainingSet, a.pixels) == a.label)
-        .count;
+    immutable num = taskPool.reduce!"a + b"(
+        validationSample.filter!(a => classify(trainingSet, a.pixels) == a.label));
 
     writefln("Percentage correct: %f percent",
              num.to!double / validationSample.length.to!double * 100.0);
