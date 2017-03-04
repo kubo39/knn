@@ -9,5 +9,5 @@ cargo run --release
 ```
 $ time ./target/release/knnrs                        [kubo39:knnrs][git:master]
 Percentage correct: 94.39999999999999%
-./target/release/knnrs  2.44s user 0.08s system 359% cpu 0.703 total
+./target/release/knnrs  2.07s user 0.02s system 353% cpu 0.590 total
 ```

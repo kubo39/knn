@@ -40,7 +40,7 @@ fn distance_sqr(x: &[i32], y: &[i32]) -> i32 {
 
 fn classify(training: &[LabelPixel], pixels: &[i32]) -> i32 {
     training
-        .par_iter()
+        .iter()
         // find element of `training` with the smallest distance_sqr to `pixel`
         .min_by_key(|p| distance_sqr(p.pixels.as_slice(), pixels)).unwrap()
         .label
@@ -50,7 +50,7 @@ fn main() {
     let training_set = slurp_file(&Path::new("trainingsample.csv"));
     let validation_sample = slurp_file(&Path::new("validationsample.csv"));
 
-    let num_correct = validation_sample.iter()
+    let num_correct = validation_sample.par_iter()
         .filter(|x| {
             classify(training_set.as_slice(), x.pixels.as_slice()) == x.label
         })
