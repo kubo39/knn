@@ -1,7 +1,11 @@
+extern crate rayon;
+
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 use std::path::Path;
 use std::str::FromStr;
+
+use rayon::prelude::*;
 
 struct LabelPixel {
     label: i32,
@@ -26,6 +30,7 @@ fn slurp_file(file: &Path) -> Vec<LabelPixel> {
         .collect()
 }
 
+#[inline(never)]
 fn distance_sqr(x: &[i32], y: &[i32]) -> i32 {
     // run through the two vectors, summing up the squares of the differences
     x.iter()
@@ -35,7 +40,7 @@ fn distance_sqr(x: &[i32], y: &[i32]) -> i32 {
 
 fn classify(training: &[LabelPixel], pixels: &[i32]) -> i32 {
     training
-        .iter()
+        .par_iter()
         // find element of `training` with the smallest distance_sqr to `pixel`
         .min_by_key(|p| distance_sqr(p.pixels.as_slice(), pixels)).unwrap()
         .label
