@@ -4,7 +4,6 @@ import std.conv;
 import std.range;
 import std.stdio;
 import std.string;
-import std.typecons;
 
 struct LabelPixel
 {
@@ -14,32 +13,45 @@ struct LabelPixel
 
 auto slurpFile(string filename)
 {
-    int count;
-
-    auto lp = File(filename)
+    return File(filename)
         .byLine
         .dropOne
-        .tee!(a => count++)
         .map!chomp
         .map!(a => a.to!string.split(","))
         .map!(a => LabelPixel(a[0].to!int, a[1..$].to!(int[])) )
         .array;
-    return tuple(lp, count);
 }
 
-int distanceSqrt(const ref int[] x, const ref int[] y) pure
+ulong distanceSqrt(const ref int[] x, const ref int[] y)
 {
-    return reduce!((a, b) => a + (b[0] - b[1]) * (b[0] - b[1]))(0, x.zip(y));
+    ulong total;
+    ulong i = 0;
+    while (i < (x.length & ~7))
+    {
+        auto t0 = (x[i] - y[i]) ^^ 2;
+        auto t1 = (x[i+1] - y[i+1]) ^^ 2;
+        auto t2 = (x[i+2] - y[i+2]) ^^ 2;
+        auto t3 = (x[i+3] - y[i+3]) ^^ 2;
+        auto t4 = (x[i+4] - y[i+4]) ^^ 2;
+        auto t5 = (x[i+5] - y[i+5]) ^^ 2;
+        auto t6 = (x[i+6] - y[i+6]) ^^ 2;
+        auto t7 = (x[i+7] - y[i+7]) ^^ 2;
+        total += t0 + t1 + t2 + t3 + t4 + t5 + t6 + t7;
+        i += 8;
+    }
+    for (ulong j = i; j< x.length; j++)
+        total += (x[j] - y[j]) ^^ 2;
+    return total;
 }
 
-int classify(const ref LabelPixel[] training, const ref int[] pixels) pure
+ulong classify(const ref LabelPixel[] training, const ref int[] pixels)
 {
-    int smallest = int.max;
-    int result = void;
+    ulong smallest = ulong.max;
+    ulong result = void;
 
     foreach (t; training)
     {
-        int tmp = distanceSqrt(t.pixels, pixels);
+        ulong tmp = distanceSqrt(t.pixels, pixels);
         if (tmp < smallest)
         {
             smallest = tmp;
@@ -54,17 +66,10 @@ void main()
     const trainingSet = "trainingsample.csv".slurpFile;
     const validationSample = "validationsample.csv".slurpFile;
 
-    int count(const LabelPixel data) pure
-    {
-        int num;
-        if (classify(trainingSet[0], data.pixels) == data.label)
-            num++;
-        return num;
-    }
-
-    immutable num = reduce!"a + b"(
-        std.algorithm.map!(count)(validationSample[0]).array);
+    immutable num = validationSample
+        .filter!(a => classify(trainingSet, a.pixels) == a.label)
+        .count;
 
     writefln("Percentage correct: %f percent",
-             num.to!double / validationSample[1].to!double * 100.0);
+             num.to!double / validationSample.length.to!double * 100.0);
 }
