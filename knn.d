@@ -1,4 +1,4 @@
-// ldc2 -O5 parallelknn.d
+// ldc2 -O5 knn.d
 import std.algorithm;
 import std.array;
 import std.conv;
@@ -23,9 +23,9 @@ auto slurpFile(string filename)
         .array;
 }
 
-ulong distanceSqrt(const ref int[] x, const ref int[] y)
+int distanceSqrt(const ref int[] x,  const ref int[] y)
 {
-    ulong total;
+    int total;
     ulong i = 0;
     while (i < (x.length & ~7))
     {
@@ -45,7 +45,7 @@ ulong distanceSqrt(const ref int[] x, const ref int[] y)
     return total;
 }
 
-int classify(const ref LabelPixel[] training, const ref int[] pixels) pure
+int classify(const ref LabelPixel[] training, const ref int[] pixels)
 {
     int smallest = int.max;
     int result = void;
@@ -67,8 +67,16 @@ void main()
     const trainingSet = "trainingsample.csv".slurpFile;
     const validationSample = "validationsample.csv".slurpFile;
 
+    int count(const LabelPixel data)
+    {
+        int num;
+        if (classify(trainingSet, data.pixels) == data.label)
+            num++;
+        return num;
+    }
+
     immutable num = taskPool.reduce!"a + b"(
-        validationSample.filter!(a => classify(trainingSet, a.pixels) == a.label));
+        std.algorithm.map!(count)(validationSample));
 
     writefln("Percentage correct: %f percent",
              num.to!double / validationSample.length.to!double * 100.0);

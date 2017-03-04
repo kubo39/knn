@@ -583,7 +583,7 @@ objdumpでみてみる。なるほど、SIMDでループをベクトル化して
 std.parallelismを使った。スレッド数はいじっても差異はほとんどなかったのでデフォルトで。
 
 ```d
-// ldc2 -O5 parallelknn.d
+// ldc2 -O5 knn.d
 import std.algorithm;
 import std.array;
 import std.conv;
@@ -608,9 +608,9 @@ auto slurpFile(string filename)
         .array;
 }
 
-ulong distanceSqrt(const ref int[] x, const ref int[] y)
+int distanceSqrt(ref int[] x, ref int[] y)
 {
-    ulong total;
+    int total;
     ulong i = 0;
     while (i < (x.length & ~7))
     {
@@ -630,7 +630,7 @@ ulong distanceSqrt(const ref int[] x, const ref int[] y)
     return total;
 }
 
-int classify(const ref LabelPixel[] training, const ref int[] pixels) pure
+int classify(ref LabelPixel[] training, ref int[] pixels)
 {
     int smallest = int.max;
     int result = void;
@@ -649,11 +649,19 @@ int classify(const ref LabelPixel[] training, const ref int[] pixels) pure
 
 void main()
 {
-    const trainingSet = "trainingsample.csv".slurpFile;
-    const validationSample = "validationsample.csv".slurpFile;
+    auto trainingSet = "trainingsample.csv".slurpFile;
+    auto validationSample = "validationsample.csv".slurpFile;
 
-    immutable num = taskPool.reduce!"a + b"(
-        validationSample.filter!(a => classify(trainingSet, a.pixels) == a.label));
+    int count(LabelPixel data)
+    {
+        int num;
+        if (classify(trainingSet, data.pixels) == data.label)
+            num++;
+        return num;
+    }
+
+    auto num = taskPool.reduce!"a + b"(
+        std.algorithm.map!(count)(validationSample));
 
     writefln("Percentage correct: %f percent",
              num.to!double / validationSample.length.to!double * 100.0);
@@ -665,7 +673,7 @@ void main()
 ```console
 $ time ./knn                                           [kubo39:knn][git:master]
 Percentage correct: 94.400000 percent
-./knn  2.37s user 0.01s system 99% cpu 2.378 total
+./knn  4.40s user 0.01s system 312% cpu 1.411 total
 ```
 
 ### Rust
